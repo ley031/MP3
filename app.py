@@ -1,8 +1,9 @@
 import secrets
 import sqlite3
 import html
+import bcrypt
 from flask import Flask, request, render_template, redirect, session, abort, make_response
-
+from flask_bcrypt import Bcrypt
 app = Flask(__name__)
 con = sqlite3.connect("app.db", check_same_thread=False)
 app.secret_key = secrets.token_hex(16)  # Required for session to work
@@ -24,30 +25,33 @@ def add_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     return response
 
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     cur = con.cursor()
     if request.method == "GET":
         if request.cookies.get("session_token"):
-            # Use parameterized query
+            # No changes to this part
             res = cur.execute("SELECT username FROM users INNER JOIN sessions ON "
-                              "users.id = sessions.user WHERE sessions.token = ?", 
-                             (request.cookies.get("session_token"),))
+                              "users.id = sessions.user WHERE sessions.token = ?",
+                              (request.cookies.get("session_token"),))
             user = res.fetchone()
             if user:
                 return redirect("/home")
 
         return render_template("login.html")
     else:
-        # Use parameterized query
-        res = cur.execute("SELECT id FROM users WHERE username = ? AND password = ?", 
-                         (request.form["username"], request.form["password"]))
+        # Get the user by username only
+        res = cur.execute("SELECT id, password FROM users WHERE username = ?",
+                          (request.form["username"],))
         user = res.fetchone()
-        if user:
+
+        # If user exists and password matches
+        if user and bcrypt.check_password_hash(user[1], request.form["password"]):
             token = secrets.token_hex()
             # Use parameterized query
-            cur.execute("INSERT INTO sessions (user, token) VALUES (?, ?)", 
-                       (user[0], token))
+            cur.execute("INSERT INTO sessions (user, token) VALUES (?, ?)",
+                        (user[0], token))
             con.commit()
             response = redirect("/home")
             # Set HttpOnly cookie to prevent JS access
@@ -55,7 +59,6 @@ def login():
             return response
         else:
             return render_template("login.html", error="Invalid username and/or password!")
-
 @app.route("/")
 @app.route("/home")
 def home():
