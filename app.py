@@ -2,9 +2,11 @@ import secrets
 import sqlite3
 import html
 import bcrypt
-from flask import Flask, request, render_template, redirect, session, abort, make_response
 from flask_bcrypt import Bcrypt
+from flask import Flask, request, render_template, redirect, session, abort, make_response
+
 app = Flask(__name__)
+bcrypt = Bcrypt(app)
 con = sqlite3.connect("app.db", check_same_thread=False)
 app.secret_key = secrets.token_hex(16)  # Required for session to work
 
