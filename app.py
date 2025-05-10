@@ -33,7 +33,7 @@ def login():
     cur = con.cursor()
     if request.method == "GET":
         if request.cookies.get("session_token"):
-            # No changes to this part
+
             res = cur.execute("SELECT username FROM users INNER JOIN sessions ON "
                               "users.id = sessions.user WHERE sessions.token = ?",
                               (request.cookies.get("session_token"),))
